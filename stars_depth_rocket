@@ -1,0 +1,215 @@
+// Daniel Shiffman
+// http://codingtra.in
+// http://patreon.com/codingtrain
+// Code for: https://youtu.be/17WoOqgXsRM
+//import org.openkinect.processing.*;
+import org.openkinect.freenect.*;
+import org.openkinect.freenect2.*;
+import org.openkinect.processing.*;
+import org.openkinect.tests.*;
+
+
+// I create an array named "stars",
+// it will be filled with 800 elements made with the Star() class.
+Star[] stars = new Star[800];
+
+// I create a variable "speed", it'll be useful to control the speed of stars.
+float speed;
+float xstart, xnoise, ystart, ynoise; 
+
+Kinect2 kinect2;
+Animation rocketan;
+
+int kinectSize = 512*424;
+int[] previous = new int[kinectSize];
+int[] change = new int[kinectSize];
+int totalChange;
+int minDepth = 2000;
+int oldMean;
+int newMean;
+int totalDepth=1;
+int numPixels = 1;
+int depthMean=0;
+int oldDepthMean =0;
+//PImage rocket;
+
+float xpos;
+float ypos;
+float xdiff;
+float ydiff;
+float rxpos;
+float rypos;
+float oldx;
+float oldy;
+
+
+void setup() {
+  size(512, 424);
+  //fullscreen();
+  kinect2 = new Kinect2(this);
+ // kinect.initDevice();
+  // I fill the array with a for loop;
+  // running 800 times, it creates a new star using the Star() class.
+  smooth(); 
+  background(0);
+  kinect2.initDepth();
+  kinect2.initDevice();
+  //img = createImage(kinect2.depthWidth, kinect2.depthHeight, RGB);
+  
+  previous = kinect2.getRawDepth();
+  change = kinect2.getRawDepth();
+  
+  //rocket = loadImage("Rocket.gif");
+  //rocket = loadImage("sand.jpg");
+  
+  for(int i = 0; i < kinectSize; i++) {
+    previous[i] = 0;
+    change[i] = 0; 
+  }
+  xstart = random(10); 
+  ystart = random(10);
+  for (int i = 0; i < stars.length; i++) {
+    stars[i] = new Star();
+  }
+  
+  rocketan = new Animation("Rocket", 5);
+  frameRate(24);
+}
+
+void draw() {
+  // i link the value of the speed variable to the mouse position.
+  //speed = map(mouseX, 0, width, 0, 30);
+ // int[] depth = kinect.getRawDepth();
+  xstart += 0.01;  // increments x/y noise start values
+  ystart += 0.01;
+  PImage img = kinect2.getDepthImage();
+  int[] depth = kinect2.getRawDepth();
+  /*for (int y = 0; y <= height; y+=5) { 
+    ynoise += 0.1;                                     
+    xnoise = xstart; 
+    for (int x = 0; x <= width; x+=5) { 
+      xnoise += 0.1;     
+      drawPoint(x, y, noise(xnoise, ynoise));
+    }
+  }*/
+  int delta; 
+  oldMean = newMean;
+  oldDepthMean = depthMean;
+  int offset;
+  int d;
+  
+  
+  for (int i = 0; i < img.width; i++) {
+    for (int j = 0; j < img.height; j++) {
+      offset = i + j * img.width;
+      d = depth[offset];
+      //println(d);
+      //int oldd = lastDepth[offset];
+      //sumDepthDiff+=abs(oldd-d);
+      //if(abs(oldd -d) >maxDiff)
+        //maxDiff = abs(oldd-d);
+      if(d >200 && d<1000)
+        { 
+          totalDepth+=d;
+          numPixels++;
+        }
+        
+         delta = abs(previous[offset]-depth[offset]);
+      //println(delta);
+      /*if (delta > 500) {
+        change[offset] = delta;
+      } else {
+        change[offset] = 0;
+      }*/
+      
+      totalChange += delta;
+        
+      //float b = brightness(img.pixels[offset]);
+    }
+  }
+  newMean = abs(totalChange / kinectSize);
+   //int newMean = oldMean; 
+   
+ depthMean = abs(totalDepth/numPixels);
+ 
+   
+   //int deriv = abs(oldMean-newMean);
+   int deriv = abs(oldDepthMean - depthMean);
+   //println(deriv);
+   //println(numPixels);
+   //image(rocket, 100, 100);
+   xpos = width;
+   ypos = height/2;
+  
+   if(deriv ==0)
+   {
+    speed = 0 ;
+    //xdiff = 1.1;
+    xdiff = 2;
+    ydiff = 0;
+   }
+  else if(deriv ==1  )
+  {
+    speed =2;
+    xdiff=1.8;
+    ydiff = height/2;
+  }
+  else if(deriv==2 )
+  {
+    speed = 5;
+    xdiff=1.7;
+    ydiff =height/3;
+  }
+  else if(deriv>2 && deriv<5)
+  {
+    speed =8;
+    xdiff=1.5;
+    ydiff = height/4;
+  }
+  else 
+  {
+    speed = 12;
+    xdiff=1.3;
+    ydiff = height/6;
+  }
+    
+  float newx = xpos*xdiff;
+  float dx = newx-oldx;
+  //rxpos = xpos +newx/30;
+  rxpos= oldx + dx/30;
+  //float newy = ypos*(xdiff+0.2);
+  float newy = ypos-ydiff;
+  float dy = newy-oldy;
+  //ypos*=xdiff;
+  //rypos = ypos +=newy/30;
+  rypos = oldy +dy/30;
+  
+  oldx = rxpos;
+  oldy= rypos;
+
+  background(0);
+  // I shift the entire composition,
+  // moving its center from the top left corner to the center of the canvas.
+  //translate(width, height/2);
+  //image(rocket, 100, 100);
+  // I draw each star, running the "update" method to update its position and
+  // the "show" method to show it on the canvas.
+  for (int i = 0; i < stars.length; i++) {
+    stars[i].update();
+    stars[i].show();
+  }
+   rocketan.display(rxpos-rocketan.getWidth()/2, rypos);
+}  
+
+  void drawPoint(float x, float y, float noiseFactor) {    
+  pushMatrix();
+  translate(x, y);
+  rotate(noiseFactor * radians(540));
+  float edgeSize = noiseFactor * 35;
+  float grey = 150 + (noiseFactor * 120);
+  float alph = 150 + (noiseFactor * 120);
+  noStroke();
+  fill(grey, alph);
+  ellipse(0, 0, edgeSize, edgeSize/2);
+  popMatrix();
+}
